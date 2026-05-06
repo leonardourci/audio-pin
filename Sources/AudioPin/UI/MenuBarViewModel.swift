@@ -26,8 +26,16 @@ final class MenuBarViewModel {
         appState.settings.profiles
     }
 
+    var activeProfileID: UUID {
+        appState.settings.activeProfileID
+    }
+
     var enforcementBlocked: Bool {
         appState.enforcementBlocked
+    }
+
+    var isConfigured: Bool {
+        !appState.settings.inputPriorityList.isEmpty || !appState.settings.outputPriorityList.isEmpty
     }
 
     init(appState: AppState) {
