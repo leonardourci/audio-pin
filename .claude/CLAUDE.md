@@ -7,4 +7,7 @@ Product spec: `PRD.md` at repo root.
 ## References
 
 - @architecture.md — code architecture, protocols, concurrency, key invariants.
-- @commit-guidelines.md — git commit format, types, scopes, examples.
+
+## Slash commands
+
+- `/commit` — Conventional Commit for staged changes (AudioPin scopes).
