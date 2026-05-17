@@ -11,9 +11,11 @@ struct AudioPinApp: App {
         } label: {
             Image(systemName: "headphones")
         }
+        .menuBarExtraStyle(.window)
 
-        Settings {
+        Window("AudioPin Settings", id: "settings") {
             SettingsView(appState: appState)
         }
+        .windowResizability(.contentSize)
     }
 }
