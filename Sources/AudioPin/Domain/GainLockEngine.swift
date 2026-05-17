@@ -1,6 +1,7 @@
 import Foundation
 
 actor GainLockEngine {
+    private static let log = AppLog.logger("GainLockEngine")
     private let gainController: any GainController
 
     private var eventTimestamps: [ContinuousClock.Instant] = []
@@ -17,10 +18,13 @@ actor GainLockEngine {
         onBlocked = handler
     }
 
-    // Called whenever an external gain change is detected
     func enforce(deviceID: DeviceID, target: Float, enabled: Bool) {
         guard enabled, !isRunaway() else { return }
-        try? gainController.setGain(target, forDevice: deviceID)
+        do {
+            try gainController.setInputGain(target, forDevice: deviceID)
+        } catch {
+            Self.log.error("enforce: setInputGain failed: id=\(deviceID, privacy: .public) error=\(String(describing: error), privacy: .public)")
+        }
     }
 
     private func isRunaway() -> Bool {

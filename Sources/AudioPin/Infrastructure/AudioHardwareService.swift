@@ -2,6 +2,8 @@ import CoreAudio
 import Foundation
 
 final class AudioHardwareService: @unchecked Sendable {
+    static let log = AppLog.logger("AudioHardwareService")
+
     private let queue = DispatchQueue(label: "audiopin.hardware", qos: .userInteractive)
 
     // Retain listener blocks so CoreAudio doesn't deallocate them
@@ -37,18 +39,30 @@ extension AudioHardwareService: DeviceListProvider {
 
 extension AudioHardwareService: DefaultDeviceSetter {
     func setDefaultInput(_ id: DeviceID) throws {
-        try setU32(systemObject, kAudioHardwarePropertyDefaultInputDevice, id)
+        do {
+            try setU32(systemObject, kAudioHardwarePropertyDefaultInputDevice, id)
+            Self.log.info("setDefaultInput: id=\(id, privacy: .public) status=noErr")
+        } catch let AudioError.coreAudio(status) {
+            Self.log.error("setDefaultInput: id=\(id, privacy: .public) status=\(status, privacy: .public)")
+            throw AudioError.coreAudio(status)
+        }
     }
 
     func setDefaultOutput(_ id: DeviceID) throws {
-        try setU32(systemObject, kAudioHardwarePropertyDefaultOutputDevice, id)
+        do {
+            try setU32(systemObject, kAudioHardwarePropertyDefaultOutputDevice, id)
+            Self.log.info("setDefaultOutput: id=\(id, privacy: .public) status=noErr")
+        } catch let AudioError.coreAudio(status) {
+            Self.log.error("setDefaultOutput: id=\(id, privacy: .public) status=\(status, privacy: .public)")
+            throw AudioError.coreAudio(status)
+        }
     }
 }
 
 // MARK: - GainController
 
 extension AudioHardwareService: GainController {
-    func gain(forDevice id: DeviceID) -> Float? {
+    func inputGain(forDevice id: DeviceID) -> Float? {
         // Try Main element first; fall back to per-channel elements (USB mics)
         for element: AudioObjectPropertyElement in [kAudioObjectPropertyElementMain, 1, 2] {
             var addr = AudioObjectPropertyAddress(
@@ -65,7 +79,7 @@ extension AudioHardwareService: GainController {
         return nil
     }
 
-    func setGain(_ value: Float, forDevice id: DeviceID) throws {
+    func setInputGain(_ value: Float, forDevice id: DeviceID) throws {
         var wroteAny = false
         for element: AudioObjectPropertyElement in [kAudioObjectPropertyElementMain, 1, 2] {
             var addr = AudioObjectPropertyAddress(
@@ -79,6 +93,50 @@ extension AudioHardwareService: GainController {
             if status == noErr { wroteAny = true }
         }
         if !wroteAny { throw AudioError.propertyNotFound }
+    }
+
+    func outputVolume(forDevice id: DeviceID) -> Float? {
+        var sum: Float = 0
+        var count = 0
+        for element: AudioObjectPropertyElement in [kAudioObjectPropertyElementMain, 1, 2] {
+            var addr = AudioObjectPropertyAddress(
+                mSelector: kAudioDevicePropertyVolumeScalar,
+                mScope: kAudioDevicePropertyScopeOutput,
+                mElement: element
+            )
+            guard AudioObjectHasProperty(id, &addr) else { continue }
+            var size = UInt32(MemoryLayout<Float32>.size)
+            var value: Float32 = 0
+            guard AudioObjectGetPropertyData(id, &addr, 0, nil, &size, &value) == noErr else { continue }
+            sum += value
+            count += 1
+        }
+        guard count > 0 else { return nil }
+        return sum / Float(count)
+    }
+
+    func setOutputVolume(_ value: Float, forDevice id: DeviceID) throws {
+        var wroteAny = false
+        for element: AudioObjectPropertyElement in [kAudioObjectPropertyElementMain, 1, 2] {
+            var addr = AudioObjectPropertyAddress(
+                mSelector: kAudioDevicePropertyVolumeScalar,
+                mScope: kAudioDevicePropertyScopeOutput,
+                mElement: element
+            )
+            guard AudioObjectHasProperty(id, &addr) else { continue }
+            var v = value
+            let status = AudioObjectSetPropertyData(id, &addr, 0, nil, UInt32(MemoryLayout<Float32>.size), &v)
+            if status == noErr {
+                wroteAny = true
+            } else {
+                Self.log.error("setOutputVolume: id=\(id, privacy: .public) element=\(element, privacy: .public) status=\(status, privacy: .public)")
+            }
+        }
+        if !wroteAny {
+            Self.log.error("setOutputVolume: id=\(id, privacy: .public) no writable element")
+            throw AudioError.propertyNotFound
+        }
+        Self.log.info("setOutputVolume: id=\(id, privacy: .public) value=\(value, privacy: .public) status=noErr")
     }
 }
 
@@ -97,7 +155,7 @@ extension AudioHardwareService: PropertyListenerRegistrar {
         addListener(on: systemObject, selector: kAudioHardwarePropertyDefaultOutputDevice) { handler() }
     }
 
-    func addGainListener(forDevice id: DeviceID, _ handler: @escaping @Sendable () -> Void) {
+    func addInputGainListener(forDevice id: DeviceID, _ handler: @escaping @Sendable () -> Void) {
         for element: AudioObjectPropertyElement in [kAudioObjectPropertyElementMain, 1, 2] {
             var addr = AudioObjectPropertyAddress(
                 mSelector: kAudioDevicePropertyVolumeScalar,
@@ -109,6 +167,27 @@ extension AudioHardwareService: PropertyListenerRegistrar {
             let status = AudioObjectAddPropertyListenerBlock(id, &addr, queue, block)
             if status == noErr {
                 blocksLock.withLock { listenerBlocks.append(block) }
+            }
+        }
+    }
+
+    func addOutputVolumeListener(forDevice id: DeviceID, _ handler: @escaping @Sendable () -> Void) {
+        for element: AudioObjectPropertyElement in [kAudioObjectPropertyElementMain, 1, 2] {
+            var addr = AudioObjectPropertyAddress(
+                mSelector: kAudioDevicePropertyVolumeScalar,
+                mScope: kAudioDevicePropertyScopeOutput,
+                mElement: element
+            )
+            guard AudioObjectHasProperty(id, &addr) else { continue }
+            let block: AudioObjectPropertyListenerBlock = { _, _ in
+                Self.log.debug("outputVolume listener fired: id=\(id, privacy: .public) element=\(element, privacy: .public)")
+                handler()
+            }
+            let status = AudioObjectAddPropertyListenerBlock(id, &addr, queue, block)
+            if status == noErr {
+                blocksLock.withLock { listenerBlocks.append(block) }
+            } else {
+                Self.log.error("addOutputVolumeListener: id=\(id, privacy: .public) element=\(element, privacy: .public) status=\(status, privacy: .public)")
             }
         }
     }
