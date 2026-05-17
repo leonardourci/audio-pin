@@ -1,14 +1,19 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.2
 import PackageDescription
 
 let package = Package(
     name: "AudioPin",
-    // TODO: update to .v16 when targeting macOS Tahoe
-    platforms: [.macOS(.v15)],
+    platforms: [.macOS(.v26)],
     targets: [
         .executableTarget(
             name: "AudioPin",
             path: "Sources/AudioPin",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        .testTarget(
+            name: "AudioPinTests",
+            dependencies: ["AudioPin"],
+            path: "Tests/AudioPinTests",
             swiftSettings: [.swiftLanguageMode(.v6)]
         )
     ]
