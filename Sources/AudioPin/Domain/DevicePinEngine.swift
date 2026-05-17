@@ -1,6 +1,7 @@
 import Foundation
 
 actor DevicePinEngine {
+    private static let log = AppLog.logger("DevicePinEngine")
     private let listProvider: any DeviceListProvider
     private let setter: any DefaultDeviceSetter
 
@@ -34,30 +35,70 @@ actor DevicePinEngine {
         currentOutputID: DeviceID,
         isEnabled: Bool
     ) {
-        guard isEnabled, !isRunaway() else { return }
+        Self.log.debug("""
+            enforce: enabled=\(isEnabled, privacy: .public) \
+            currentIn=\(currentInputID, privacy: .public) currentOut=\(currentOutputID, privacy: .public) \
+            preferredInUID=\(preferredInputUID ?? "nil", privacy: .public) \
+            preferredOutUID=\(preferredOutputUID ?? "nil", privacy: .public) \
+            inPriority=\(inputPriority.count, privacy: .public) outPriority=\(outputPriority.count, privacy: .public) \
+            connected=\(connectedDevices.count, privacy: .public)
+            """)
 
-        if !isSelfWrite() {
-            let targetInput = resolve(
-                preferred: preferredInputUID,
-                priority: inputPriority,
-                from: connectedDevices,
-                scope: .input
-            )
-            if let target = targetInput, target.id != currentInputID {
-                lastWriteTime = .now
-                try? setter.setDefaultInput(target.id)
-            }
+        guard isEnabled else {
+            Self.log.debug("enforce: skipped (disabled)")
+            return
+        }
+        guard !isRunaway() else {
+            Self.log.error("enforce: skipped (runaway guard tripped)")
+            return
+        }
+        if isSelfWrite() {
+            Self.log.debug("enforce: skipped (self-write window)")
+            return
+        }
 
-            let targetOutput = resolve(
-                preferred: preferredOutputUID,
-                priority: outputPriority,
-                from: connectedDevices,
-                scope: .output
-            )
-            if let target = targetOutput, target.id != currentOutputID {
+        let targetInput = resolve(
+            preferred: preferredInputUID,
+            priority: inputPriority,
+            from: connectedDevices,
+            scope: .input
+        )
+        if let target = targetInput {
+            if target.id != currentInputID {
+                Self.log.info("enforce: setting input -> id=\(target.id, privacy: .public) uid=\(target.uid, privacy: .public) name=\(target.name, privacy: .public)")
                 lastWriteTime = .now
-                try? setter.setDefaultOutput(target.id)
+                do {
+                    try setter.setDefaultInput(target.id)
+                } catch {
+                    Self.log.error("enforce: setDefaultInput failed: \(String(describing: error), privacy: .public)")
+                }
+            } else {
+                Self.log.debug("enforce: input already on target id=\(target.id, privacy: .public)")
             }
+        } else {
+            Self.log.info("enforce: no input target resolved (preferred=\(preferredInputUID ?? "nil", privacy: .public), priorityCount=\(inputPriority.count, privacy: .public))")
+        }
+
+        let targetOutput = resolve(
+            preferred: preferredOutputUID,
+            priority: outputPriority,
+            from: connectedDevices,
+            scope: .output
+        )
+        if let target = targetOutput {
+            if target.id != currentOutputID {
+                Self.log.info("enforce: setting output -> id=\(target.id, privacy: .public) uid=\(target.uid, privacy: .public) name=\(target.name, privacy: .public)")
+                lastWriteTime = .now
+                do {
+                    try setter.setDefaultOutput(target.id)
+                } catch {
+                    Self.log.error("enforce: setDefaultOutput failed: \(String(describing: error), privacy: .public)")
+                }
+            } else {
+                Self.log.debug("enforce: output already on target id=\(target.id, privacy: .public)")
+            }
+        } else {
+            Self.log.info("enforce: no output target resolved (preferred=\(preferredOutputUID ?? "nil", privacy: .public), priorityCount=\(outputPriority.count, privacy: .public))")
         }
     }
 
@@ -84,16 +125,26 @@ actor DevicePinEngine {
         scope: Scope
     ) -> AudioDevice? {
         let candidates = connected.filter { isCompatible($0, scope: scope) }
+        Self.log.debug("resolve(\(String(describing: scope), privacy: .public)): candidates=\(candidates.map { "\($0.name)#\($0.id)" }.joined(separator: ","), privacy: .public)")
 
-        // Profile's preferred device takes top priority if connected
-        if let uid = preferred, let match = candidates.first(where: { $0.uid == uid }) {
-            return match
+        if let uid = preferred {
+            if let match = candidates.first(where: { $0.uid == uid }) {
+                Self.log.debug("resolve: preferred uid=\(uid, privacy: .public) matched id=\(match.id, privacy: .public)")
+                return match
+            } else {
+                Self.log.debug("resolve: preferred uid=\(uid, privacy: .public) NOT in compatible candidates")
+            }
         }
 
-        // Fall through priority list: UID match first, name fallback
         for entry in priority {
-            if let match = candidates.first(where: { $0.uid == entry.uid }) { return match }
-            if let match = candidates.first(where: { $0.name == entry.lastKnownName }) { return match }
+            if let match = candidates.first(where: { $0.uid == entry.uid }) {
+                Self.log.debug("resolve: priority uid=\(entry.uid, privacy: .public) matched id=\(match.id, privacy: .public)")
+                return match
+            }
+            if let match = candidates.first(where: { $0.name == entry.lastKnownName }) {
+                Self.log.debug("resolve: priority name=\(entry.lastKnownName, privacy: .public) matched id=\(match.id, privacy: .public)")
+                return match
+            }
         }
 
         return nil

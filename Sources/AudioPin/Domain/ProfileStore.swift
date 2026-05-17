@@ -1,6 +1,7 @@
 import Foundation
 
 actor ProfileStore {
+    private static let log = AppLog.logger("ProfileStore")
     private static let defaultsKey = "audiopin.settings"
 
     private(set) var settings: AppSettings
@@ -38,17 +39,23 @@ actor ProfileStore {
     }
 
     private func persist() {
-        guard let data = try? JSONEncoder().encode(settings) else { return }
-        UserDefaults.standard.set(data, forKey: Self.defaultsKey)
+        do {
+            let data = try JSONEncoder().encode(settings)
+            UserDefaults.standard.set(data, forKey: Self.defaultsKey)
+        } catch {
+            Self.log.error("persist failed: \(String(describing: error), privacy: .public)")
+        }
     }
 
     private static func load() -> AppSettings {
-        guard
-            let data = UserDefaults.standard.data(forKey: defaultsKey),
-            let decoded = try? JSONDecoder().decode(AppSettings.self, from: data)
-        else {
+        guard let data = UserDefaults.standard.data(forKey: defaultsKey) else {
             return .makeDefault()
         }
-        return decoded
+        do {
+            return try JSONDecoder().decode(AppSettings.self, from: data)
+        } catch {
+            log.error("load failed, falling back to defaults: \(String(describing: error), privacy: .public)")
+            return .makeDefault()
+        }
     }
 }
