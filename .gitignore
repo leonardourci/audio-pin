@@ -78,4 +78,5 @@ CLAUDE.local.md
 
 # Logs / misc
 *.log
+*.tmp
 node_modules/
