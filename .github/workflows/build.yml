@@ -11,7 +11,18 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Swift via swiftly
+        run: |
+          brew install swiftly
+          swiftly init --assume-yes --quiet-shell-followup
+          echo "$HOME/.swiftly/bin" >> "$GITHUB_PATH"
+
+      - name: Swift version
+        run: swift --version
+
       - name: Build
         run: swift build -c release
+
       - name: Test
         run: swift test
