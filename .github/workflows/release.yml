@@ -26,6 +26,26 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Extract changelog section
+        id: notes
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { found=1; next }
+            found && $0 ~ "^## \\[" { exit }
+            found { print }
+          ' CHANGELOG.md > RELEASE_NOTES.md
+          if [ ! -s RELEASE_NOTES.md ]; then
+            echo "No CHANGELOG.md section for [$VERSION]. Add one before merging to release." >&2
+            exit 1
+          fi
+          # Trim leading/trailing blank lines
+          sed -i '' -e '/./,$!d' RELEASE_NOTES.md 2>/dev/null || sed -i -e '/./,$!d' RELEASE_NOTES.md
+          echo "----- Release notes -----"
+          cat RELEASE_NOTES.md
+
       - name: Abort if tag already exists
         run: |
           TAG="${{ steps.ver.outputs.tag }}"
@@ -78,6 +98,8 @@ jobs:
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
           name: ${{ steps.ver.outputs.tag }}
+          body_path: RELEASE_NOTES.md
+          append_body: true
           generate_release_notes: true
           draft: false
           prerelease: false

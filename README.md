@@ -86,23 +86,26 @@ swift test
 
 ## Releases
 
-Releases are cut by merging `main` into the `release` branch. CI reads `VERSION`, tags `v$VERSION`, builds `AudioPin.app`, zips it, and publishes a GitHub Release with auto-generated notes (PRs, contributors, "What's Changed").
+Releases are cut by merging `main` into the `release` branch. CI reads `VERSION`, extracts the matching section from [`CHANGELOG.md`](CHANGELOG.md), tags `v$VERSION`, builds `AudioPin.app`, zips it, and publishes a GitHub Release with the changelog prose **plus** auto-generated PR list + contributors below.
 
 To cut a release:
 
 ```bash
-# bump
+# 1. write release notes — move [Unreleased] entries into a new versioned section in CHANGELOG.md
+#    (you can @mention contributors with @username — GitHub auto-links them)
+
+# 2. bump
 echo "0.2.0" > VERSION
-git add VERSION && git commit -m "chore: bump version to 0.2.0"
+git add VERSION CHANGELOG.md && git commit -m "chore: release 0.2.0"
 git push origin main
 
-# ship
+# 3. ship
 git checkout release
 git merge main
 git push origin release
 ```
 
-CI aborts if the tag already exists, so bump `VERSION` before every release merge.
+CI aborts if the tag already exists or if `CHANGELOG.md` is missing a section for the new version. Bump `VERSION` and update `CHANGELOG.md` before every release merge.
 
 ## Contributing
 
