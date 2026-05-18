@@ -7,6 +7,12 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- Ad-hoc codesign the `.app` in CI before zipping. Reduces the "AudioPin is damaged and cannot be opened" Gatekeeper message on first launch. Notarization still required for friction-free install.
+
+### Docs
+- README documents the `xattr -dr com.apple.quarantine` unblock for users on unsigned downloads.
+
 ## [0.1.0] - 2026-05-19
 
 ### Added
