@@ -138,3 +138,5 @@ Conventions:
 ## License
 
 MIT. See [`LICENSE`](LICENSE).
+
+<img width="1191" height="1102" alt="image" src="https://github.com/user-attachments/assets/c97ae011-bb93-49f2-9779-160461c4d748" />
