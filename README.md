@@ -27,9 +27,26 @@ macOS auto-switches the default input/output to whichever device was most recent
 
 ## Install
 
-Download the latest `.dmg` from [Releases](../../releases), open it, and drag AudioPin to Applications.
+Download the latest `AudioPin-X.Y.Z.zip` from [Releases](../../releases), unzip, and drag `AudioPin.app` to `/Applications`.
 
-First launch: macOS will show a Gatekeeper warning because AudioPin is unsigned. Right-click the app in Finder → **Open** to bypass it once.
+### First launch — Gatekeeper
+
+AudioPin is **unsigned** (notarization needs an Apple Developer Program subscription — not in scope for v0). Without it, macOS shows either:
+
+> *"AudioPin" is damaged and cannot be opened. You should move it to the Trash.*
+
+or a Gatekeeper warning. Neither means the binary is actually broken — macOS just refuses unsigned downloads by default.
+
+To run it the first time, strip the quarantine attribute:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/AudioPin.app
+open /Applications/AudioPin.app
+```
+
+You only need to do this once. Subsequent launches behave normally.
+
+Prefer not to trust prebuilt binaries? [Build from source](#build-from-source).
 
 ## Build from source
 

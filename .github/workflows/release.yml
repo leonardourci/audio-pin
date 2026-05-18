@@ -78,6 +78,14 @@ jobs:
           cp Sources/AudioPin/Info.plist "$APP/Contents/Info.plist"
           chmod +x "$APP/Contents/MacOS/AudioPin"
 
+      - name: Ad-hoc codesign
+        run: |
+          # Unsigned builds get "AudioPin is damaged and cannot be opened" on
+          # download due to quarantine. Ad-hoc signature reduces the friction;
+          # users may still need to strip the quarantine xattr the first time.
+          codesign --force --deep --sign - AudioPin.app
+          codesign --verify --deep --strict AudioPin.app
+
       - name: Zip .app
         run: |
           set -euo pipefail
