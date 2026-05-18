@@ -84,6 +84,26 @@ export PATH="$HOME/.swiftly/bin:$PATH"   # add to ~/.zshrc to persist
 swift test
 ```
 
+## Releases
+
+Releases are cut by merging `main` into the `release` branch. CI reads `VERSION`, tags `v$VERSION`, builds `AudioPin.app`, zips it, and publishes a GitHub Release with auto-generated notes (PRs, contributors, "What's Changed").
+
+To cut a release:
+
+```bash
+# bump
+echo "0.2.0" > VERSION
+git add VERSION && git commit -m "chore: bump version to 0.2.0"
+git push origin main
+
+# ship
+git checkout release
+git merge main
+git push origin release
+```
+
+CI aborts if the tag already exists, so bump `VERSION` before every release merge.
+
 ## Contributing
 
 PRs and issues welcome. Please open an issue before significant work so we can discuss scope.

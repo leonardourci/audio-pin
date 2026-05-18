@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    branches: [release]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version
+        id: ver
+        run: |
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          if [ -z "$VERSION" ]; then
+            echo "VERSION file is empty" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Abort if tag already exists
+        run: |
+          TAG="${{ steps.ver.outputs.tag }}"
+          if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists. Bump VERSION before merging to release." >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists on origin. Bump VERSION before merging to release." >&2
+            exit 1
+          fi
+
+      - name: Install Swift via swiftly
+        run: |
+          brew install swiftly
+          swiftly init --assume-yes --quiet-shell-followup
+          echo "$HOME/.swiftly/bin" >> "$GITHUB_PATH"
+
+      - name: Build release binary
+        run: swift build -c release --product AudioPin
+
+      - name: Assemble .app bundle
+        run: |
+          set -euo pipefail
+          APP="AudioPin.app"
+          rm -rf "$APP"
+          mkdir -p "$APP/Contents/MacOS"
+          mkdir -p "$APP/Contents/Resources"
+          cp .build/release/AudioPin "$APP/Contents/MacOS/AudioPin"
+          cp Sources/AudioPin/Info.plist "$APP/Contents/Info.plist"
+          chmod +x "$APP/Contents/MacOS/AudioPin"
+
+      - name: Zip .app
+        run: |
+          set -euo pipefail
+          ditto -c -k --keepParent AudioPin.app "AudioPin-${{ steps.ver.outputs.version }}.zip"
+
+      - name: Create and push tag
+        env:
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: ${{ steps.ver.outputs.tag }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          files: AudioPin-${{ steps.ver.outputs.version }}.zip
