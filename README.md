@@ -21,7 +21,7 @@ macOS auto-switches the default input/output to whichever device was most recent
 
 ## Requirements
 
-- macOS 26 (Tahoe) or later.
+- macOS 14 (Sonoma) or later.
 - Swift 6 / Xcode 16+ (only to build from source).
 - No third-party dependencies.
 
