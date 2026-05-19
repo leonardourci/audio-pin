@@ -59,6 +59,7 @@ struct MenuBarView: View {
             sectionLabel("Output")
             let outputs = viewModel.connectedDevices.filter { $0.hasOutput }
             deviceMenu(
+                icon: "speaker.wave.2",
                 selectedUID: viewModel.preferredOutputUID,
                 devices: outputs,
                 onSelect: { uid in Task { await viewModel.setPreferredOutput(uid) } }
@@ -75,6 +76,7 @@ struct MenuBarView: View {
             sectionLabel("Input")
             let inputs = viewModel.connectedDevices.filter { $0.hasInput }
             deviceMenu(
+                icon: "mic",
                 selectedUID: viewModel.preferredInputUID,
                 devices: inputs,
                 onSelect: { uid in Task { await viewModel.setPreferredInput(uid) } }
@@ -101,6 +103,7 @@ struct MenuBarView: View {
     }
 
     private func deviceMenu(
+        icon: String,
         selectedUID: String?,
         devices: [AudioDevice],
         onSelect: @escaping (String) -> Void
@@ -121,6 +124,8 @@ struct MenuBarView: View {
             }
         } label: {
             HStack(spacing: UI.spacingXS) {
+                Image(systemName: icon)
+                    .foregroundStyle(.secondary)
                 Text(selectedName)
                     .lineLimit(1)
                     .truncationMode(.middle)
