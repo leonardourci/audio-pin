@@ -3,13 +3,19 @@ import SwiftUI
 @main
 struct AudioPinApp: App {
     @State private var appState = AppState()
+    @State private var updateChecker = UpdateChecker()
 
     var body: some Scene {
         MenuBarExtra {
-            MenuBarView(appState: appState)
-                .task { await appState.start() }
+            MenuBarView(appState: appState, updateChecker: updateChecker)
+                .task {
+                    await appState.start()
+                    updateChecker.startPeriodicChecks()
+                }
         } label: {
-            Image(systemName: "headphones")
+            Image(systemName: updateChecker.updateAvailable
+                  ? "headphones.circle.fill"
+                  : "headphones")
         }
         .menuBarExtraStyle(.window)
 

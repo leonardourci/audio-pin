@@ -3,6 +3,7 @@ import AppKit
 
 struct MenuBarView: View {
     let appState: AppState
+    let updateChecker: UpdateChecker
     @State private var viewModel: MenuBarViewModel
     @State private var isAddingProfile = false
     @State private var newProfileName = ""
@@ -11,8 +12,9 @@ struct MenuBarView: View {
     @State private var showEnforcementHelp = false
     @Environment(\.openWindow) private var openWindow
 
-    init(appState: AppState) {
+    init(appState: AppState, updateChecker: UpdateChecker) {
         self.appState = appState
+        self.updateChecker = updateChecker
         _viewModel = State(initialValue: MenuBarViewModel(appState: appState))
     }
 
@@ -35,6 +37,11 @@ struct MenuBarView: View {
             } else {
                 Divider()
                 emptyState
+            }
+
+            if updateChecker.updateAvailable {
+                Divider()
+                updateAvailableRow
             }
 
             Divider()
@@ -376,6 +383,34 @@ struct MenuBarView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
+        }
+    }
+
+    private var updateAvailableRow: some View {
+        HStack(spacing: UI.spacingXS) {
+            Image(systemName: "arrow.down.circle.fill")
+                .foregroundStyle(Color.accentColor)
+            Text("Update available: v\(updateChecker.latestVersion ?? "")")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button("Download") {
+                if let url = updateChecker.releaseURL {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+            .controlSize(.small)
+            .disabled(updateChecker.releaseURL == nil)
+
+            Button {
+                updateChecker.dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.borderless)
+            .help("Dismiss")
         }
     }
 
