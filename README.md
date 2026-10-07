@@ -5,7 +5,7 @@
 </div>
 
 <p align="center">
-  <img width="650" alt="Meme: a man telling a brain &quot;No thanks, I use AI&quot;" src="https://github.com/user-attachments/assets/c97ae011-bb93-49f2-9779-160461c4d748" />
+  <img width="300" alt="Meme: a man telling a brain &quot;No thanks, I use AI&quot;" src="https://github.com/user-attachments/assets/c97ae011-bb93-49f2-9779-160461c4d748" />
 </p>
 
 AudioPin is a free, open-source macOS menu bar app for keeping your preferred input and output devices selected and locking your microphone gain.
