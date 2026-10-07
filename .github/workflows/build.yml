@@ -15,7 +15,9 @@ jobs:
       - name: Install Swift via swiftly
         run: |
           brew install swiftly
-          swiftly init --assume-yes --quiet-shell-followup
+          swiftly init --skip-install --assume-yes --quiet-shell-followup
+          swiftly install --assume-yes
+          swiftly use
           echo "$HOME/.swiftly/bin" >> "$GITHUB_PATH"
 
       - name: Swift version
